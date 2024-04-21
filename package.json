@@ -1,0 +1,22 @@
+{
+  "name": "@leaphy-robotics/webusb-ftdi",
+  "version": "1.0.0",
+  "description": "FTDI Driver for WebUSB",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "license": "LGPL-3.0-only",
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsup ./src"
+  },
+  "devDependencies": {
+    "@types/w3c-web-serial": "^1.0.6",
+    "@types/w3c-web-usb": "^1.0.10",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5"
+  }
+}
