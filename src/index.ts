@@ -34,18 +34,6 @@ class DriverFTDI {
                 dataBits: 8
             }
         }
-
-        this.readable = new ReadableStream({
-            start: (controller) => {
-                this._internal.controller = controller
-            }
-        })
-
-        this.writable = new WritableStream({
-            write: async (chunk) => {
-                await this._send(chunk)
-            }
-        })
     }
 
     async open(options: SerialOptions) {
