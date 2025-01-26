@@ -16,8 +16,9 @@ interface InternalState {
 
 class DriverFTDI {
     private _internal: InternalState
-    public readable?: ReadableStream<Uint8Array>
-    public writable?: WritableStream<Uint8Array>
+    private active: boolean = false
+    private activeReadable?: ReadableStream<Uint8Array>
+    private activeWritable?: WritableStream<Uint8Array>
 
     constructor(device: USBDevice) {
         this._internal = {
@@ -38,17 +39,6 @@ class DriverFTDI {
 
     async open(options: SerialOptions) {
         this._internal.options = Object.assign(this._internal.options, options)
-        this.readable = new ReadableStream({
-            start: (controller) => {
-                this._internal.controller = controller
-            }
-        })
-
-        this.writable = new WritableStream({
-            write: async (chunk) => {
-                await this._send(chunk)
-            }
-        })
 
         /* Open the device */
         await this._internal.device.open()
@@ -110,6 +100,8 @@ class DriverFTDI {
             index: iface.interfaceNumber
         }, new Uint8Array([]))
 
+        this.active = true
+
         /* Poll for incoming data */
         this._poll().then(() => {
             this._internal.emitter.dispatchEvent(new Event('stopped'))
@@ -143,13 +135,12 @@ class DriverFTDI {
 
     close() {
         return new Promise<void>((resolve) => {
+            this.active = false
             this._internal.emitter.addEventListener('stopped', async () => {
                 let iface = this._internal.device.configuration?.interfaces[0]
                 if (iface) await this._internal.device.releaseInterface(iface.interfaceNumber)
 
                 await this._internal.device.close()
-                this.writable = undefined
-                this.readable = undefined
                 resolve()
             }, { once: true })
 
@@ -189,6 +180,36 @@ class DriverFTDI {
                 }
             }
         }
+    }
+
+    get readable() {
+        if (!this.active) return
+        if (this.activeReadable) return this.activeReadable
+
+        this.activeReadable = new ReadableStream({
+            start: (controller) => {
+                this._internal.controller = controller
+            },
+            cancel: () => {
+                this.activeReadable = undefined
+            }
+        })
+        return this.activeReadable
+    }
+
+    get writable() {
+        if (!this.active) return
+        if (this.activeWritable) return this.activeWritable
+
+        this.activeWritable = new WritableStream({
+            write: async (chunk) => {
+                await this._send(chunk)
+            },
+            close: () => {
+                this.activeWritable = undefined
+            }
+        })
+        return this.activeWritable
     }
 }
 
