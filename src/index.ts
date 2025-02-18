@@ -14,13 +14,14 @@ interface InternalState {
     controller?: ReadableStreamDefaultController<Uint8Array>
 }
 
-class DriverFTDI {
+class DriverFTDI extends EventTarget {
     private _internal: InternalState
     private active: boolean = false
     private activeReadable?: ReadableStream<Uint8Array>
     private activeWritable?: WritableStream<Uint8Array>
 
     constructor(device: USBDevice) {
+        super()
         this._internal = {
             emitter: new EventTarget(),
             device: device,
@@ -155,10 +156,14 @@ class DriverFTDI {
         }
     }
 
-    _send(data: Uint8Array) {
+    async _send(data: Uint8Array) {
         if (!this._internal.endpoints.out) throw new Error('Port must be open first!')
 
-        return this._internal.device.transferOut(this._internal.endpoints.out.endpointNumber, data)
+        try {
+            await this._internal.device.transferOut(this._internal.endpoints.out.endpointNumber, data)
+        } catch {
+            this.dispatchEvent(new Event('disconnect'))
+        }
     }
 
     async _poll() {
@@ -170,7 +175,13 @@ class DriverFTDI {
         }, { once: true })
 
         while (!closing) {
-            const transfer = await this._internal.device.transferIn(this._internal.endpoints.in.endpointNumber, 64)
+            let transfer: USBInTransferResult
+            try {
+                transfer = await this._internal.device.transferIn(this._internal.endpoints.in.endpointNumber, 64)
+            } catch (e) {
+                this.dispatchEvent(new Event('disconnect'))
+                break
+            }
 
             if (transfer.status === 'ok' && transfer.data) {
                 if (transfer.data.byteLength > 2) {
