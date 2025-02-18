@@ -1,6 +1,6 @@
 {
   "name": "@leaphy-robotics/webusb-ftdi",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "FTDI Driver for WebUSB",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
